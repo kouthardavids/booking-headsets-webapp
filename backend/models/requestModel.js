@@ -6,8 +6,9 @@ export const createRequest = async (userId, headsetId) => {
     'INSERT INTO requests (user_id, headset_id, status, requested_at) VALUES (?, ?, ?, NOW())',
     [userId, headsetId, 'borrowed']
   );
-  return result.insertId;
+  return result.insertId; // This returns the auto-increment ID
 };
+
 
 // Check if the user has booked for the day
 export const hasUserBooked = async (userId) => {
@@ -37,7 +38,8 @@ export const updateStatus = async (userId, headsetId) => {
 export const fetchAllRequests = async () => {
   try {
     const [result] = await db.query(
-      `SELECT r.user_id, r.headset_id, r.status, r.requested_at, r.returned_at, 
+      `SELECT r.id as request_id, r.user_id, r.headset_id, r.status, 
+              r.requested_at, r.returned_at, 
               u.username, h.station AS headset_name
        FROM requests r
        JOIN users u ON r.user_id = u.user_id
@@ -57,7 +59,7 @@ export const fetchAllRequests = async () => {
 export const fetchLimitedRequests = async (limit = 5) => {
   try {
     const [result] = await db.query(
-      `SELECT r.user_id, r.requested_at, r.status, u.username
+      `SELECT r.id as request_id, r.user_id, r.requested_at, r.status, u.username
       FROM requests r
       JOIN users u ON r.user_id = u.user_id
       ORDER BY r.requested_at DESC

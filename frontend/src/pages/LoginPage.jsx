@@ -1,103 +1,147 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
+import { useAuth } from '../api/authContext.jsx';
+import './LoginPage.css'; // New CSS file for consistent styling
 
 export default function LoginPageDesign() {
-  const gold = '#C5A357';
-  const goldHover = '#b8954e';
-  const [hover, setHover] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
-  const inputStyle = {
-    fontSize: '1.125rem',
-    padding: '0.75rem 1rem',
-    borderRadius: '0.75rem',
-    border: '1px solid #ced4da',
-    width: '100%',
-    boxSizing: 'border-box',
+  const { login, googleLogin } = useAuth();
+  const navigate = useNavigate();
+
+  // LoginPage.jsx - Update the handleLogin and handleGoogleLogin functions
+  const handleLogin = async (e) => {
+    e.preventDefault();
+
+    if (!email.trim() || !password.trim()) {
+      setError('Please fill in all fields');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await login(email.trim(), password);
+
+      if (result.success) {
+        // Redirect is handled by the ProtectedRoute in App.jsx
+      } else {
+        setError(result.error);
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      setError('Login failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async (credentialResponse) => {
+    try {
+      setLoading(true);
+      setError(null);
+      const { credential } = credentialResponse;
+      const result = await googleLogin(credential);
+
+      if (result.success) {
+        // Redirect is handled by the ProtectedRoute in App.jsx
+        // The auth state change will automatically redirect
+      } else {
+        // Show specific error messages
+        if (result.error.includes('registered manually')) {
+          setError('This email was registered with a password. Please use the email login form.');
+        } else if (result.error.includes('No account found')) {
+          setError('No account found with this email. Please sign up first.');
+        } else {
+          setError(result.error);
+        }
+      }
+    } catch (error) {
+      console.error('Google login error:', error);
+      setError('Google login failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        backgroundColor: '#f8f9fa',
-        padding: '1rem',
-      }}
-    >
-      <div
-        style={{
-          padding: '2rem',
-          borderRadius: '1rem',
-          width: '100%',
-          maxWidth: '420px',
-          backgroundColor: 'white',
-          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-        }}
-      >
-        <h2
-          style={{
-            fontWeight: '700',
-            color: '#212529',
-            marginBottom: '1.5rem',
-            textAlign: 'center',
-          }}
-        >
+    <div className="login-container">
+      <div className="modern-card login-card">
+        <h2 className="login-title">
           Welcome Back!
         </h2>
 
+        <div className="google-login-container">
+          <GoogleLogin
+            onSuccess={handleGoogleLogin}
+            onError={() => setError('Google login failed')}
+            shape="pill"
+            theme="outline"
+            size="large"
+            text="continue_with"
+          />
+        </div>
+
         {/* Divider */}
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1.5rem' }}>
-          <div style={{ flexGrow: 1, borderTop: '1px solid #adb5bd' }}></div>
-          <span style={{ margin: '0 1rem', color: '#6c757d', fontSize: '0.8rem' }}>
+        <div className="divider-container">
+          <div className="divider-line"></div>
+          <span className="divider-text">
             or log in with email
           </span>
-          <div style={{ flexGrow: 1, borderTop: '1px solid #adb5bd' }}></div>
+          <div className="divider-line"></div>
         </div>
 
         {/* Email login form */}
-        <form style={{ display: 'grid', gap: '1rem' }}>
-          <input type="email" placeholder="Email" style={inputStyle} />
-          <input type="password" placeholder="Password" style={inputStyle} />
-          <div style={{ textAlign: 'right' }}>
-            <Link to="/forgot-password" style={{ color: gold, textDecoration: 'none' }}>
+        <form className="login-form" onSubmit={handleLogin}>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email"
+            className="modern-input"
+            required
+          />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
+            className="modern-input"
+            required
+          />
+          <div className="forgot-password-link">
+            <Link to="/forgot-password">
               Forgot Password?
             </Link>
           </div>
           <button
             type="submit"
-            style={{
-              backgroundColor: hover ? goldHover : gold,
-              color: 'white',
-              border: 'none',
-              padding: '0.75rem',
-              fontWeight: '700',
-              borderRadius: '0.75rem',
-              width: '100%',
-              cursor: 'pointer',
-              transition: 'background-color 0.3s ease',
-            }}
-            onMouseEnter={() => setHover(true)}
-            onMouseLeave={() => setHover(false)}
+            disabled={loading}
+            className="modern-btn login-btn"
           >
-            Log In
+            {loading ? (
+              <>
+                <span className="spinner-modern"></span>
+                Logging In...
+              </>
+            ) : 'Log In'}
           </button>
         </form>
 
+        {error && (
+          <p className="error-message">{error}</p>
+        )}
+
         {/* Footer */}
-        <p
-          style={{
-            marginTop: '1.5rem',
-            textAlign: 'center',
-            color: '#6c757d',
-            fontSize: '0.875rem',
-          }}
-        >
+        <p className="login-footer">
           Don't have an account?
           <Link
-            to="/register"
-            style={{ color: gold, textDecoration: 'none', marginLeft: '0.25rem' }}
+            to="/signup"
+            className="login-footer-link"
           >
             Sign up
           </Link>

@@ -5,7 +5,10 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const app = express();
+
+// Create a http server
 const server = http.createServer(app);
+// Create a socket io server that is attacked to that http server (wrap it)
 const io = new Server(server, {
     cors: {
         origin: process.env.NODE_ENV === 'production'
@@ -15,14 +18,13 @@ const io = new Server(server, {
     }
 });
 
-// Track the connected users
 const connectedUsers = new Map();
 
 // Handling the connection
 io.on('connection', (socket) => {
     console.log('User connected:', socket.id);
 
-    // Track authenticated users
+    // Tracks the authenticated users
     socket.on('user_connected', (userId) => {
         connectedUsers.set(userId, socket.id);
         console.log(`User ${userId} connected with socket ${socket.id}`);

@@ -1,54 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import io from 'socket.io-client';
 import './StudentDashboard.css';
+import { api, API_BASE_URL } from '../api/headsetApi.js';
+import { useAuth } from '../api/authContext.jsx';
 
-// Defines where the api is located
-const API_BASE_URL = import.meta.env.VITE_API_URL ||
-  (window.location.origin.includes('localhost')
-    ? 'http://localhost:5006/api'
-    : window.location.origin + '/api');
-
-const api = {
-  // Functions that call REST API endpoints for availability
-  getAvailableHeadsets: () => fetchWithErrorHandling(`${API_BASE_URL}/headsets/available`),
-  getTotalHeadsets: () => fetchWithErrorHandling(`${API_BASE_URL}/headsets/total`),
-  getUnavailableHeadsets: () => fetchWithErrorHandling(`${API_BASE_URL}/headsets/unavailable`),
-  getAllHeadsets: () => fetchWithErrorHandling(`${API_BASE_URL}/headsets/all`),
-
-  // Sends a post request to book a headset for a given user
-  bookHeadset: (userId, headsetId) => fetchWithErrorHandling(`${API_BASE_URL}/requests/book`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ userId, headsetId })
-  }),
-
-  // Sends a post request to return a headset
-  returnHeadset: (userId, headsetId) => fetchWithErrorHandling(`${API_BASE_URL}/requests/return`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ userId, headsetId })
-  }),
-
-  // Get booking history (recent or all)
-  getRecentRequests: (limit = 5) => fetchWithErrorHandling(`${API_BASE_URL}/requests/recent?limit=${limit}`),
-  getAllRequests: () => fetchWithErrorHandling(`${API_BASE_URL}/requests/all`)
-};
-
-// Here we create a helper function
-const fetchWithErrorHandling = async (url, options = {}) => {
-  try {
-    const response = await fetch(url, options);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    return response.json();
-  } catch (error) {
-    console.error(`API call failed for ${url}:`, error);
-    throw new Error(`Failed to connect to server: ${error.message}`);
-  }
-};
-
-// Defines the main component
 const HeadsetBookingSystem = () => {
   // State management
   const [availableHeadsets, setAvailableHeadsets] = useState(0);
@@ -65,10 +20,10 @@ const HeadsetBookingSystem = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [lastUpdated, setLastUpdated] = useState(new Date());
 
-  // Mock user ID (in real app, get from auth context)
-  const userId = 1;
+  // Get user info and logout function from auth context
+  const { user, logout } = useAuth();
 
-  // Initialize socket connection
+  // Begin the socket connection: When the component mounts connect to the socket
   useEffect(() => {
     // Connects to a websocket server
     const socketInstance = io(import.meta.env.VITE_SOCKET_URL || 'http://localhost:5006', {
@@ -79,7 +34,7 @@ const HeadsetBookingSystem = () => {
     socketInstance.on('connect', () => {
       console.log('Connected to server');
       setIsConnected(true);
-      socketInstance.emit('user_connected', userId);
+      socketInstance.emit('user_connected', user.user_id);
     });
 
     // Marks as disconnected
@@ -88,8 +43,8 @@ const HeadsetBookingSystem = () => {
       setIsConnected(false);
     });
 
-    // Listen for real-time updates
-    // When backend announces a headset was booked -> refresh API data & update UI
+    // Listen for real time updates
+    // When backend announces a headset was booked, refresh API data & update UI
     socketInstance.on('headset_booked', (data) => {
       console.log('Headset booked:', data);
       fetchHeadsetData();
@@ -108,14 +63,13 @@ const HeadsetBookingSystem = () => {
     // save the socket state
     setSocket(socketInstance);
 
-    // cleanup: disconnects when the component unmounts
+    // disconnects when the component unmounts (cleanups)
     return () => {
       socketInstance.disconnect();
     };
-  }, [userId]);
+  }, [user]);
 
   // Fetch headset data from API
-  // Fetch all the functions stats at once using Promise.all
   const fetchHeadsetData = async () => {
     try {
       setIsLoading(true);
@@ -139,7 +93,7 @@ const HeadsetBookingSystem = () => {
         type: 'error',
         message: 'Failed to fetch headset data. Please check if the server is running.'
       });
-      // Set default values to prevent UI errors
+      // Set up defaults values
       setAvailableHeadsets(0);
       setTotalHeadsets(0);
       setUnavailableHeadsets(0);
@@ -148,14 +102,13 @@ const HeadsetBookingSystem = () => {
     }
   };
 
-  // Fetch recent activity
-  // Loads the recent headset requests, formats them for display
+  // Recent Activity: Fetch only the first 4 recent requests made
   const fetchRecentActivity = async () => {
     try {
-      const response = await api.getRecentRequests(10);
+      const response = await api.getRecentRequests(4);
       if (response.requests) {
         const formattedBookings = response.requests.map(request => ({
-          id: `${request.user_id}-${Date.now()}`,
+          id: request.request_id || request.id,
           name: request.username,
           time: new Date(request.requested_at).toLocaleTimeString('en-US', {
             hour: 'numeric',
@@ -169,17 +122,48 @@ const HeadsetBookingSystem = () => {
       }
     } catch (error) {
       console.error("Error fetching recent activity:", error);
-      // Set empty array instead of letting it fail completely
       setRecentBookings([]);
     }
   };
 
+  // Check if user has an active booking
+  const checkActiveBooking = async () => {
+    try {
+      const response = await api.getAllRequests();
+      if (response.requests) {
+        const activeBooking = response.requests.find(request =>
+          request.user_id === user.user_id &&
+          request.status === 'borrowed'
+        );
+
+        if (activeBooking) {
+          const booking = {
+            id: activeBooking.request_id,
+            headsetId: activeBooking.headset_id,
+            station: activeBooking.headset_name || `VR-${activeBooking.headset_id}`,
+            timestamp: activeBooking.requested_at,
+            timeBooked: new Date(activeBooking.requested_at).toLocaleTimeString('en-US', {
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true
+            })
+          };
+          setUserBooking(booking);
+        }
+      }
+    } catch (error) {
+      console.error("Error checking active booking:", error);
+    }
+  };
+
   // Initial data fetch
-  
   useEffect(() => {
     fetchHeadsetData();
     fetchRecentActivity();
-  }, []);
+    if (user) {
+      checkActiveBooking();
+    }
+  }, [user]);
 
   // Auto-refresh data every 30 seconds
   useEffect(() => {
@@ -228,7 +212,7 @@ const HeadsetBookingSystem = () => {
       }
 
       // Book the headset
-      const response = await api.bookHeadset(userId, availableHeadset.id);
+      const response = await api.bookHeadset(user.user_id, availableHeadset.id);
 
       if (response.message && response.message.includes('successfully')) {
         const booking = {
@@ -252,7 +236,7 @@ const HeadsetBookingSystem = () => {
         // Emit socket event
         if (socket) {
           socket.emit('headset_booked', {
-            userId,
+            userId: user.user_id,
             headsetId: availableHeadset.id,
             timestamp: new Date().toISOString()
           });
@@ -285,7 +269,7 @@ const HeadsetBookingSystem = () => {
     setIsLoading(true);
 
     try {
-      const response = await api.returnHeadset(userId, userBooking.headsetId);
+      const response = await api.returnHeadset(user.user_id, userBooking.headsetId);
 
       if (response.message && response.message.includes('successfully')) {
         setUserBooking(null);
@@ -297,7 +281,7 @@ const HeadsetBookingSystem = () => {
         // Emit socket event
         if (socket) {
           socket.emit('headset_returned', {
-            userId,
+            userId: user.user_id,
             headsetId: userBooking.headsetId,
             timestamp: new Date().toISOString()
           });
@@ -357,10 +341,24 @@ const HeadsetBookingSystem = () => {
             <p className="lead text-medium fs-5 mb-2">
               Request headset and get an immediate response
             </p>
-            <div className="text-soft small">
-              <i className={`fas ${isConnected ? 'fa-wifi text-success' : 'fa-wifi-slash text-danger'} me-2`}></i>
-              {isConnected ? 'Connected' : 'Disconnected'} • Last updated: {lastUpdated.toLocaleTimeString()}
-            </div>
+
+            {/* User info and logout button */}
+            {user && (
+              <div className="mt-3">
+                <button
+                  onClick={logout}
+                  className="btn btn-outline-danger btn-sm"
+                  style={{
+                    borderRadius: '20px',
+                    padding: '0.25rem 0.75rem',
+                    fontSize: '0.875rem'
+                  }}
+                >
+                  <i className="fas fa-sign-out-alt me-1"></i>
+                  Logout
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -423,7 +421,7 @@ const HeadsetBookingSystem = () => {
                     </div>
                     <div className="modern-progress mb-3">
                       <div
-                        className="progress-bar"
+                        className="modern-progress-bar"
                         style={{
                           width: `${totalHeadsets > 0 ? (availableHeadsets / totalHeadsets) * 100 : 0}%`
                         }}
@@ -445,7 +443,7 @@ const HeadsetBookingSystem = () => {
           <div className="row mb-5">
             <div className="col-12">
               <div className="modern-card p-4 p-md-5 text-center">
-                <h2 className="display-6 fw-bold text-strong mb-3">Request your headset now!</h2>
+                <h2 className="display-6 fw-bold text-strong mb-3">Get your headset now!</h2>
                 <p className="lead text-medium mb-5">
                   One click is all it takes. No forms to fill out.
                 </p>
@@ -503,21 +501,6 @@ const HeadsetBookingSystem = () => {
                   <i className="fas fa-check-circle fa-3x icon-success mb-3"></i>
                   <h2 className="display-6 fw-bold text-strong">You're all set!</h2>
                   <p className="text-medium">Your headset has been reserved</p>
-                </div>
-
-                <div className="row mb-4">
-                  <div className="col-md-6">
-                    <div className="stats-card">
-                      <div className="fw-bold text-primary">Station</div>
-                      <div className="h4 mb-0">{userBooking.station}</div>
-                    </div>
-                  </div>
-                  <div className="col-md-6">
-                    <div className="stats-card">
-                      <div className="fw-bold text-primary">Time Booked</div>
-                      <div className="h4 mb-0">{userBooking.timeBooked}</div>
-                    </div>
-                  </div>
                 </div>
 
                 <div className="text-center">
@@ -629,24 +612,6 @@ const HeadsetBookingSystem = () => {
             </div>
           </div>
         </div>
-
-        {/* Debug Info (remove in production) */}
-        {process.env.NODE_ENV === 'development' && (
-          <div className="row mt-5">
-            <div className="col-12">
-              <div className="alert alert-info">
-                <h6>Debug Information:</h6>
-                <small>
-                  <strong>API Base URL:</strong> {API_BASE_URL}<br />
-                  <strong>Socket Connected:</strong> {isConnected ? 'Yes' : 'No'}<br />
-                  <strong>User ID:</strong> {userId}<br />
-                  <strong>Available/Total:</strong> {availableHeadsets}/{totalHeadsets}<br />
-                  <strong>Last Updated:</strong> {lastUpdated.toLocaleString()}
-                </small>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

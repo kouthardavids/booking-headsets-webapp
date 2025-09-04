@@ -1,95 +1,153 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { GoogleLogin } from '@react-oauth/google';
+import { useAuth } from '../api/authContext.jsx';
+import './SignupPage.css'; // New CSS file for consistent styling
 
 export default function RegisterPageDesign() {
-  const gold = '#C5A357';
-  const goldHover = '#b8954e';
-  const [hover, setHover] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  const inputStyle = {
-    fontSize: '1.125rem',
-    padding: '0.75rem 1rem',
-    borderRadius: '0.75rem',
-    border: '1px solid #ced4da',
-    width: '100%',
-    boxSizing: 'border-box',
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const { signup, googleSignup } = useAuth();
+
+  const handleSignup = async (e) => {
+    e.preventDefault();
+
+    if (!username.trim() || !email.trim() || !password.trim()) {
+      setError('Please fill in all fields');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters long");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError(null);
+      const result = await signup(username.trim(), email.trim(), password);
+
+      if (result.success) {
+        // Redirect is handled by the ProtectedRoute in App.jsx
+        // The auth state change will automatically redirect
+      } else {
+        setError(result.error);
+      }
+    } catch (error) {
+      console.error('Email signup error:', error);
+      setError(error.response?.data?.message || 'Signup failed. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignup = async (credentialResponse) => {
+    try {
+      setLoading(true);
+      const { credential } = credentialResponse;
+      const result = await googleSignup(credential);
+
+      if (result.success) {
+        // Redirect is handled by the ProtectedRoute in App.jsx
+        // The auth state change will automatically redirect
+      } else {
+        if (result.error.includes('already registered manually')) {
+          setError('This email is already registered. Please log in with your password instead.');
+        } else if (result.error.includes('already exists')) {
+          setError('Account already exists. Please log in instead.');
+        } else {
+          setError(result.error);
+        }
+      }
+    } catch (error) {
+      console.error('Google signup error:', error);
+      setError(error.response?.data?.message || 'Google signup failed');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        height: '100vh',
-        backgroundColor: '#f8f9fa',
-        padding: '1rem',
-      }}
-    >
-
-      <div
-        style={{
-          padding: '2rem',
-          borderRadius: '1rem',
-          width: '100%',
-          maxWidth: '420px',
-          backgroundColor: 'white',
-          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-        }}
-      >
-        <h2
-          style={{
-            fontWeight: '700',
-            color: '#212529',
-            marginBottom: '1.5rem',
-            textAlign: 'center',
-          }}
-        >
+    <div className="signup-container">
+      <div className="modern-card signup-card">
+        <h2 className="signup-title">
           Create Your Account
         </h2>
 
+        <div className="google-signup-container">
+          <GoogleLogin
+            onSuccess={handleGoogleSignup}
+            shape="pill"
+            theme="outline"
+            size="large"
+            text="continue_with"
+          />
+        </div>
+
         {/* Divider */}
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1.5rem' }}>
-          <div style={{ flexGrow: 1, borderTop: '1px solid #adb5bd' }}></div>
-          <span style={{ margin: '0 1rem', color: '#6c757d', fontSize: '0.8rem' }}>
+        <div className="divider-container">
+          <div className="divider-line"></div>
+          <span className="divider-text">
             or sign up with email
           </span>
-          <div style={{ flexGrow: 1, borderTop: '1px solid #adb5bd' }}></div>
+          <div className="divider-line"></div>
         </div>
 
         {/* Email signup form */}
-        <form style={{ display: 'grid', gap: '1rem' }}>
-          <input type="email" placeholder="Email" style={inputStyle} />
-          <input type="password" placeholder="Password (min. 6 characters)" style={inputStyle} />
-          <input type="password" placeholder="Confirm Password" style={inputStyle} />
+        <form className="signup-form" onSubmit={handleSignup}>
+          <input
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Username"
+            className="modern-input"
+            required
+          />
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email"
+            className="modern-input"
+            required
+          />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password (min. 6 characters)"
+            className="modern-input"
+            required
+          />
           <button
             type="submit"
-            style={{
-              backgroundColor: hover ? goldHover : gold,
-              color: 'white',
-              border: 'none',
-              padding: '0.75rem',
-              fontWeight: '700',
-              borderRadius: '0.75rem',
-              width: '100%',
-              cursor: 'pointer',
-              transition: 'background-color 0.3s ease',
-            }}
-            onMouseEnter={() => setHover(true)}
-            onMouseLeave={() => setHover(false)}
+            disabled={loading}
+            className="modern-btn signup-btn"
           >
-            Sign Up
+            {loading ? (
+              <>
+                <span className="spinner-modern"></span>
+                Signing Up...
+              </>
+            ) : 'Sign Up'}
           </button>
         </form>
 
+        {error && (
+          <p className="error-message">{error}</p>
+        )}
+
         {/* Footer */}
-        <p style={{ marginTop: '1.5rem', textAlign: 'center', color: '#6c757d', fontSize: '0.875rem' }}>
+        <p className="signup-footer">
           Already have an account?
           <Link
             to="/login"
-            style={{ color: gold, textDecoration: 'none', marginLeft: '0.25rem' }}
-            onMouseOver={(e) => (e.currentTarget.style.textDecoration = 'underline')}
-            onMouseOut={(e) => (e.currentTarget.style.textDecoration = 'none')}
+            className="signup-footer-link"
           >
             Log in
           </Link>

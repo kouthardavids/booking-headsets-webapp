@@ -176,22 +176,25 @@ body {
   50% { transform: translateY(-8px); }
 }
 
+/* Fixed Progress Bar Styles */
 .modern-progress {
   background: var(--gray-200);
   border-radius: 12px;
   height: 12px;
   position: relative;
   overflow: hidden;
+  width: 100%;
 }
 
-.modern-progress .progress-bar {
+.modern-progress-bar {
   background: linear-gradient(90deg, var(--primary-blue) 0%, var(--primary-blue-light) 100%);
   border-radius: 12px;
   transition: width 0.8s ease;
   position: relative;
+  height: 100%;
 }
 
-.modern-progress .progress-bar::after {
+.modern-progress-bar::after {
   content: '';
   position: absolute;
   top: 0;

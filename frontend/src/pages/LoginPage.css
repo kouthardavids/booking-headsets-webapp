@@ -1,0 +1,116 @@
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+  padding: 1rem;
+}
+
+.login-card {
+  padding: 2.5rem;
+  width: 100%;
+  max-width: 420px;
+  text-align: center;
+}
+
+.login-title {
+  font-weight: 700;
+  color: var(--gray-800);
+  margin-bottom: 1.5rem;
+  font-size: 1.875rem;
+}
+
+.google-login-container {
+  margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: center;
+}
+
+.divider-container {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.divider-line {
+  flex-grow: 1;
+  border-top: 1px solid var(--gray-300);
+}
+
+.divider-text {
+  margin: 0 1rem;
+  color: var(--gray-500);
+  font-size: 0.875rem;
+}
+
+.login-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.modern-input {
+  font-size: 1rem;
+  padding: 0.875rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--gray-300);
+  width: 100%;
+  box-sizing: border-box;
+  background: white;
+  transition: all 0.3s ease;
+}
+
+.modern-input:focus {
+  outline: none;
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.forgot-password-link {
+  text-align: right;
+  margin-bottom: 0.5rem;
+}
+
+.forgot-password-link a {
+  color: var(--primary-blue);
+  text-decoration: none;
+  font-size: 0.875rem;
+  transition: color 0.3s ease;
+}
+
+.forgot-password-link a:hover {
+  color: var(--primary-blue-dark);
+  text-decoration: underline;
+}
+
+.login-btn {
+  margin-top: 0.5rem;
+  padding: 1rem;
+  font-size: 1rem;
+}
+
+.error-message {
+  margin-top: 1rem;
+  color: var(--danger-red);
+  text-align: center;
+  font-size: 0.875rem;
+}
+
+.login-footer {
+  margin-top: 1.5rem;
+  text-align: center;
+  color: var(--gray-600);
+  font-size: 0.875rem;
+}
+
+.login-footer-link {
+  color: var(--primary-blue);
+  text-decoration: none;
+  margin-left: 0.25rem;
+  transition: color 0.3s ease;
+}
+
+.login-footer-link:hover {
+  color: var(--primary-blue-dark);
+  text-decoration: underline;
+}

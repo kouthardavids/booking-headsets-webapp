@@ -101,6 +101,7 @@ export const fetchRequests = async (req, res) => {
     }
 };
 
+// request limited to 5 on the screen
 export const fetchRequestsLimit = async (req, res) => {
     try {
         const limit = parseInt(req.query.limit) || 5;
