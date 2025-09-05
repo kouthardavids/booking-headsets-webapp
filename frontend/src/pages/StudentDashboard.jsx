@@ -457,6 +457,7 @@ const HeadsetBookingSystem = () => {
                     }`}
                   style={availableHeadsets === 0 || !isConnected ? { backgroundColor: 'var(--gray-300)', color: 'var(--gray-500)' } : {}}
                 >
+                {/* all button errors when user reserves headset */}
                   {isLoading ? (
                     <>
                       <div className="spinner-modern"></div>
