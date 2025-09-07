@@ -10,12 +10,12 @@ const app = express();
 const server = http.createServer(app);
 // Create a socket io server that is attacked to that http server (wrap it)
 const io = new Server(server, {
-    cors: {
-        origin: process.env.NODE_ENV === 'production'
-            ? process.env.CLIENT_URL
-            : "http://localhost:5006",
-        methods: ["GET", "POST"]
-    }
+  cors: {
+    origin: process.env.NODE_ENV === 'production'
+      ? process.env.CLIENT_URL
+      : "http://localhost:5173",
+    methods: ["GET", "POST"]
+  }
 });
 
 const connectedUsers = new Map();
